@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('gitPushNotifier', {
   loginWithPat: (token) => ipcRenderer.invoke('auth:loginWithPat', token),
   logout: () => ipcRenderer.invoke('auth:logout'),
   addRepo: (fullName) => ipcRenderer.invoke('repos:add', fullName),
+  listRepos: (options) => ipcRenderer.invoke('repos:list', options || {}),
   removeRepo: (owner, name) => ipcRenderer.invoke('repos:remove', { owner, name }),
   startMonitor: () => ipcRenderer.invoke('monitor:start'),
   stopMonitor: () => ipcRenderer.invoke('monitor:stop'),

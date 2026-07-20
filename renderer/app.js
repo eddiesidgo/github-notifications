@@ -18,6 +18,11 @@ const els = {
   monitorBadge: document.getElementById('monitor-badge'),
   formAddRepo: document.getElementById('form-add-repo'),
   inputRepo: document.getElementById('input-repo'),
+  btnBrowseRepos: document.getElementById('btn-browse-repos'),
+  btnHideRepos: document.getElementById('btn-hide-repos'),
+  repoPicker: document.getElementById('repo-picker'),
+  repoPickerList: document.getElementById('repo-picker-list'),
+  repoPickerStatus: document.getElementById('repo-picker-status'),
   repoError: document.getElementById('repo-error'),
   repoList: document.getElementById('repo-list'),
   repoEmpty: document.getElementById('repo-empty'),
@@ -70,6 +75,12 @@ function formatTime(iso) {
   }
 }
 
+/** Cached list from last "Mis repos" fetch */
+const browseCache = {
+  repos: [],
+  loading: false,
+};
+
 function renderRepos(state) {
   const repos = state.monitoredRepos || [];
   els.repoList.innerHTML = '';
@@ -97,6 +108,151 @@ function renderRepos(state) {
     li.append(info, removeBtn);
     els.repoList.appendChild(li);
   }
+
+  // Refresh picker badges if it's open
+  if (browseCache.repos.length && !els.repoPicker?.classList.contains('hidden')) {
+    const monitored = new Set(
+      repos.map((r) => String(r.fullName || `${r.owner}/${r.name}`).toLowerCase())
+    );
+    browseCache.repos = browseCache.repos.map((repo) => ({
+      ...repo,
+      alreadyMonitored: monitored.has(String(repo.fullName).toLowerCase()),
+    }));
+    paintRepoPicker(filterCachedRepos(els.inputRepo?.value || ''));
+  }
+}
+
+function setRepoPickerStatus(message) {
+  if (!els.repoPickerStatus) return;
+  if (!message) {
+    els.repoPickerStatus.classList.add('hidden');
+    els.repoPickerStatus.textContent = '';
+    return;
+  }
+  els.repoPickerStatus.textContent = message;
+  els.repoPickerStatus.classList.remove('hidden');
+}
+
+function filterCachedRepos(query) {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q) return browseCache.repos;
+  return browseCache.repos.filter((repo) => {
+    const full = String(repo.fullName || '').toLowerCase();
+    const name = String(repo.name || '').toLowerCase();
+    const owner = String(repo.owner || '').toLowerCase();
+    return full.includes(q) || name.includes(q) || owner.includes(q);
+  });
+}
+
+function paintRepoPicker(repos) {
+  if (!els.repoPicker || !els.repoPickerList) return;
+  els.repoPicker.classList.remove('hidden');
+  els.repoPickerList.innerHTML = '';
+
+  if (!repos.length) {
+    setRepoPickerStatus(
+      browseCache.loading ? 'Cargando repositorios…' : 'No se encontraron repositorios.'
+    );
+    return;
+  }
+
+  setRepoPickerStatus(
+    `${repos.length} repositorio(s)${
+      String(els.inputRepo?.value || '').trim() ? ' (filtrado)' : ' de tu cuenta'
+    }`
+  );
+
+  for (const repo of repos) {
+    const li = document.createElement('li');
+    if (repo.alreadyMonitored) li.classList.add('is-monitored');
+
+    const info = document.createElement('div');
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = repo.fullName;
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = [
+      repo.private ? 'Privado' : 'Público',
+      repo.alreadyMonitored ? 'Ya monitoreado' : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    info.append(name, meta);
+
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'btn primary sm';
+    addBtn.textContent = repo.alreadyMonitored ? 'Agregado' : 'Agregar';
+    addBtn.disabled = Boolean(repo.alreadyMonitored);
+    addBtn.addEventListener('click', async () => {
+      showError(els.repoError, null);
+      addBtn.disabled = true;
+      addBtn.textContent = '…';
+      const result = await api.addRepo(repo.fullName);
+      if (!result.ok) {
+        showError(els.repoError, result.error);
+        addBtn.disabled = false;
+        addBtn.textContent = 'Agregar';
+        return;
+      }
+      repo.alreadyMonitored = true;
+      li.classList.add('is-monitored');
+      addBtn.textContent = 'Agregado';
+    });
+
+    li.append(info, addBtn);
+    els.repoPickerList.appendChild(li);
+  }
+}
+
+function hideRepoPicker() {
+  if (!els.repoPicker) return;
+  els.repoPicker.classList.add('hidden');
+}
+
+function isRepoPickerOpen() {
+  return Boolean(els.repoPicker && !els.repoPicker.classList.contains('hidden'));
+}
+
+async function loadUserRepos() {
+  if (!els.repoPicker) return;
+  browseCache.loading = true;
+  els.repoPicker.classList.remove('hidden');
+  setRepoPickerStatus('Cargando repositorios…');
+  els.repoPickerList.innerHTML = '';
+  if (els.btnBrowseRepos) els.btnBrowseRepos.disabled = true;
+
+  try {
+    const result = await api.listRepos();
+    if (!result?.ok) {
+      setRepoPickerStatus(result?.error || 'No se pudieron cargar los repos.');
+      browseCache.repos = [];
+      return;
+    }
+    browseCache.repos = result.repos || [];
+    paintRepoPicker(filterCachedRepos(els.inputRepo?.value || ''));
+  } catch (err) {
+    setRepoPickerStatus(err?.message || 'No se pudieron cargar los repos.');
+    browseCache.repos = [];
+  } finally {
+    browseCache.loading = false;
+    if (els.btnBrowseRepos) els.btnBrowseRepos.disabled = false;
+  }
+}
+
+async function toggleRepoPicker() {
+  showError(els.repoError, null);
+  if (isRepoPickerOpen()) {
+    hideRepoPicker();
+    return;
+  }
+  if (browseCache.repos.length) {
+    els.repoPicker.classList.remove('hidden');
+    paintRepoPicker(filterCachedRepos(els.inputRepo?.value || ''));
+    return;
+  }
+  await loadUserRepos();
 }
 
 function renderLastEvent(state) {
@@ -260,6 +416,35 @@ function setSettingsMenuOpen(open) {
   els.btnNavSettings?.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
+let upToDateBannerTimer = null;
+
+function clearUpToDateBannerTimer() {
+  if (upToDateBannerTimer) {
+    clearTimeout(upToDateBannerTimer);
+    upToDateBannerTimer = null;
+  }
+}
+
+function showUpToDateMessage(version) {
+  const banner = els.updateBanner;
+  if (!banner) return;
+
+  clearUpToDateBannerTimer();
+  banner.classList.remove('hidden', 'is-downloading', 'is-error');
+  banner.classList.add('is-uptodate');
+  els.btnInstallUpdate?.classList.add('hidden');
+  els.updateBannerTitle.textContent = 'Estás en la última versión';
+  els.updateBannerDetail.textContent = version ? `v${version}` : 'No hay actualizaciones pendientes.';
+
+  upToDateBannerTimer = setTimeout(() => {
+    upToDateBannerTimer = null;
+    if (banner.classList.contains('is-uptodate')) {
+      banner.classList.add('hidden');
+      banner.classList.remove('is-uptodate');
+    }
+  }, 3500);
+}
+
 function renderUpdate(update, appVersion) {
   if (els.appVersion && appVersion) {
     els.appVersion.textContent = `v${appVersion}`;
@@ -275,8 +460,12 @@ function renderUpdate(update, appVersion) {
     Boolean(update?.packaged) &&
     (status === 'available' || status === 'downloading' || status === 'downloaded');
 
+  // Don't let automatic update events hide a temporary "up to date" toast
+  if (!showBanner && banner.classList.contains('is-uptodate')) return;
+
+  clearUpToDateBannerTimer();
   banner.classList.toggle('hidden', !showBanner);
-  banner.classList.remove('is-downloading', 'is-error');
+  banner.classList.remove('is-downloading', 'is-error', 'is-uptodate');
   els.btnInstallUpdate?.classList.add('hidden');
 
   if (els.btnNavUpdate) {
@@ -361,10 +550,11 @@ async function bootstrap() {
         showError(els.repoError, result.error);
         return;
       }
-      // If still up to date, give brief feedback without showing the green banner
+      // If still up to date, show a brief message
       const update = await api.getUpdateState();
       if (update?.status === 'not-available' || update?.status === 'idle') {
         showError(els.repoError, null);
+        showUpToDateMessage(update?.currentVersion);
         els.btnNavUpdate.textContent = 'Al día';
         setTimeout(() => {
           if (els.btnNavUpdate) els.btnNavUpdate.textContent = 'Buscar updates';
@@ -441,12 +631,36 @@ async function bootstrap() {
     showError(els.repoError, null);
     const value = els.inputRepo.value.trim();
     if (!value) return;
+
+    // Text without owner/repo → open/filter the account list
+    if (!value.includes('/') || value.split('/').filter(Boolean).length !== 2) {
+      if (!browseCache.repos.length) {
+        await loadUserRepos();
+      } else {
+        els.repoPicker?.classList.remove('hidden');
+        paintRepoPicker(filterCachedRepos(value));
+      }
+      return;
+    }
+
     const result = await api.addRepo(value);
     if (!result.ok) {
       showError(els.repoError, result.error);
       return;
     }
     els.inputRepo.value = '';
+  });
+
+  els.btnBrowseRepos?.addEventListener('click', () => toggleRepoPicker());
+  els.btnHideRepos?.addEventListener('click', () => hideRepoPicker());
+
+  let repoFilterTimer = null;
+  els.inputRepo?.addEventListener('input', () => {
+    if (!browseCache.repos.length || !isRepoPickerOpen()) return;
+    clearTimeout(repoFilterTimer);
+    repoFilterTimer = setTimeout(() => {
+      paintRepoPicker(filterCachedRepos(els.inputRepo.value));
+    }, 120);
   });
 
   els.btnStart.addEventListener('click', () => api.startMonitor());

@@ -161,18 +161,60 @@ class GitHubApi {
     );
   }
 
-  async searchUserRepos(query, limit = 20) {
-    const q = encodeURIComponent(`${query} in:name fork:true`);
-    const { data } = await this.request(
-      `/search/repositories?q=${q}&per_page=${limit}`
-    );
-    return (data.items || []).map((item) => ({
-      owner: item.owner.login,
-      name: item.name,
-      fullName: item.full_name,
-      private: item.private,
-      htmlUrl: item.html_url,
-    }));
+  /**
+   * List repos the authenticated user can access (owned, collab, org).
+   * Paginates until maxPages or a short page.
+   */
+  async listUserRepos({ perPage = 50, maxPages = 4 } = {}) {
+    const repos = [];
+    const seen = new Set();
+
+    for (let page = 1; page <= maxPages; page += 1) {
+      const qs = new URLSearchParams({
+        per_page: String(perPage),
+        page: String(page),
+        sort: 'updated',
+        direction: 'desc',
+        affiliation: 'owner,collaborator,organization_member',
+      });
+      const { data } = await this.request(`/user/repos?${qs}`);
+      const batch = Array.isArray(data) ? data : [];
+      for (const item of batch) {
+        const key = String(item.full_name || '').toLowerCase();
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        repos.push({
+          owner: item.owner.login,
+          name: item.name,
+          fullName: item.full_name,
+          private: item.private,
+          defaultBranch: item.default_branch,
+          htmlUrl: item.html_url,
+          updatedAt: item.updated_at,
+        });
+      }
+      if (batch.length < perPage) break;
+    }
+
+    return repos;
+  }
+
+  /**
+   * Search repositories by name among those the user can access.
+   * Loads the account list and filters client-side (includes orgs/collabs).
+   */
+  async searchUserRepos(query, limit = 30) {
+    const trimmed = String(query || '').trim().toLowerCase();
+    const repos = await this.listUserRepos({ perPage: 50, maxPages: 4 });
+    if (!trimmed) return repos.slice(0, limit);
+    return repos
+      .filter((repo) => {
+        const full = String(repo.fullName || '').toLowerCase();
+        const name = String(repo.name || '').toLowerCase();
+        const owner = String(repo.owner || '').toLowerCase();
+        return full.includes(trimmed) || name.includes(trimmed) || owner.includes(trimmed);
+      })
+      .slice(0, limit);
   }
 }
 

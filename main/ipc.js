@@ -183,6 +183,33 @@ function registerIpcHandlers() {
     }
   });
 
+  ipcMain.handle('repos:list', async () => {
+    try {
+      if (!storage.getSession()?.accessToken) {
+        return { ok: false, error: 'Debes iniciar sesión primero.', code: 'NOT_AUTHENTICATED' };
+      }
+
+      const repos = await githubApi.listUserRepos({ perPage: 50, maxPages: 4 });
+
+      const monitored = new Set(
+        storage.getMonitoredRepos().map((r) => String(r.fullName || `${r.owner}/${r.name}`).toLowerCase())
+      );
+
+      return {
+        ok: true,
+        repos: repos.map((repo) => ({
+          ...repo,
+          alreadyMonitored: monitored.has(String(repo.fullName).toLowerCase()),
+        })),
+      };
+    } catch (err) {
+      const message =
+        err instanceof GitHubApiError ? err.message : err.message || 'No se pudieron listar los repos';
+      logger.error('List repos failed', { code: err.code, message });
+      return { ok: false, error: message, code: err.code || 'LIST_REPOS_FAILED' };
+    }
+  });
+
   ipcMain.handle('repos:remove', async (_event, { owner, name }) => {
     const repos = storage.removeMonitoredRepo(owner, name);
     logger.info(`Stopped monitoring ${owner}/${name}`);

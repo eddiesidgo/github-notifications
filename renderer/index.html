@@ -173,12 +173,32 @@
               <input
                 id="input-repo"
                 type="text"
-                placeholder="owner/repo"
+                placeholder="Buscar o owner/repo"
                 autocomplete="off"
                 spellcheck="false"
+                title="Filtra la lista o escribe owner/repo para agregar"
               />
-              <button type="submit" class="btn primary">Agregar</button>
+              <div class="add-repo-actions">
+                <button id="btn-browse-repos" type="button" class="btn" title="Mostrar u ocultar repositorios de tu cuenta">
+                  Mis repos
+                </button>
+                <button type="submit" class="btn primary">Agregar</button>
+              </div>
             </form>
+            <div id="repo-picker" class="repo-picker hidden">
+              <div class="repo-picker-header">
+                <p id="repo-picker-status" class="muted repo-picker-status hidden"></p>
+                <button
+                  id="btn-hide-repos"
+                  type="button"
+                  class="btn ghost sm"
+                  title="Ocultar lista"
+                >
+                  Ocultar
+                </button>
+              </div>
+              <ul id="repo-picker-list" class="repo-picker-list"></ul>
+            </div>
             <p id="repo-error" class="error-text hidden"></p>
             <ul id="repo-list" class="repo-list"></ul>
             <p id="repo-empty" class="muted">Aún no hay repositorios monitoreados.</p>
