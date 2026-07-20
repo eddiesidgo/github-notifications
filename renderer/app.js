@@ -34,6 +34,8 @@ const els = {
   metaError: document.getElementById('meta-error'),
   lastEvent: document.getElementById('last-event'),
   chkOpenAtLogin: document.getElementById('chk-open-at-login'),
+  btnNavSettings: document.getElementById('btn-nav-settings'),
+  settingsMenu: document.getElementById('settings-menu'),
   btnNavSound: document.getElementById('btn-nav-sound'),
   soundMenu: document.getElementById('sound-menu'),
   soundMenuLabel: document.getElementById('sound-menu-label'),
@@ -251,6 +253,11 @@ function renderSound(state) {
 function setSoundMenuOpen(open) {
   els.soundMenu.classList.toggle('hidden', !open);
   els.btnNavSound.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function setSettingsMenuOpen(open) {
+  els.settingsMenu?.classList.toggle('hidden', !open);
+  els.btnNavSettings?.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
 function renderUpdate(update, appVersion) {
@@ -532,16 +539,31 @@ async function bootstrap() {
     setSoundMenuOpen(false);
   });
 
+  els.btnNavSettings?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const opening = els.settingsMenu?.classList.contains('hidden');
+    setSoundMenuOpen(false);
+    setSettingsMenuOpen(Boolean(opening));
+  });
+
   els.btnNavSound.addEventListener('click', (e) => {
     e.stopPropagation();
-    setSoundMenuOpen(els.soundMenu.classList.contains('hidden'));
+    const opening = els.soundMenu.classList.contains('hidden');
+    setSettingsMenuOpen(false);
+    setSoundMenuOpen(opening);
   });
 
   document.addEventListener('click', (e) => {
     if (!els.soundMenu.classList.contains('hidden')) {
-      const root = els.btnNavSound.closest('.nav-sound');
-      if (root && !root.contains(e.target)) {
+      const soundRoot = els.btnNavSound.closest('.nav-sound');
+      if (soundRoot && !soundRoot.contains(e.target)) {
         setSoundMenuOpen(false);
+      }
+    }
+    if (els.settingsMenu && !els.settingsMenu.classList.contains('hidden')) {
+      const settingsRoot = els.btnNavSettings?.closest('.nav-settings');
+      if (settingsRoot && !settingsRoot.contains(e.target)) {
+        setSettingsMenuOpen(false);
       }
     }
   });

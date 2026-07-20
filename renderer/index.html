@@ -74,6 +74,41 @@
             >
               Buscar updates
             </button>
+            <div class="nav-settings">
+              <button
+                id="btn-nav-settings"
+                class="btn-icon"
+                type="button"
+                title="Configuración"
+                aria-label="Configuración"
+                aria-haspopup="true"
+                aria-expanded="false"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M12 15.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7z"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                  />
+                  <path
+                    d="M19.4 13a7.8 7.8 0 000-2l2-1.2-2-3.4-2.3.6a7.7 7.7 0 00-1.7-1L15 3h-6l-.4 2.9a7.7 7.7 0 00-1.7 1L4.6 6.4l-2 3.4L4.6 11a7.8 7.8 0 000 2l-2 1.2 2 3.4 2.3-.6a7.7 7.7 0 001.7 1L9 21h6l.4-2.9a7.7 7.7 0 001.7-1l2.3.6 2-3.4-2-1.3z"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <div id="settings-menu" class="nav-menu hidden" role="menu">
+                <p class="nav-menu-label muted">Configuración</p>
+                <label class="setting-row compact" for="chk-open-at-login">
+                  <input id="chk-open-at-login" type="checkbox" />
+                  <span>
+                    <strong>Iniciar con Windows</strong>
+                    <span class="setting-hint">Abrir en segundo plano al iniciar sesión</span>
+                  </span>
+                </label>
+              </div>
+            </div>
             <div class="nav-sound">
               <button
                 id="btn-nav-sound"
@@ -106,8 +141,8 @@
                   />
                 </svg>
               </button>
-              <div id="sound-menu" class="sound-menu hidden" role="menu">
-                <p id="sound-menu-label" class="sound-menu-label muted">Sonido del sistema</p>
+              <div id="sound-menu" class="nav-menu sound-menu hidden" role="menu">
+                <p id="sound-menu-label" class="nav-menu-label muted">Sonido del sistema</p>
                 <button id="btn-choose-sound" class="btn" type="button" role="menuitem">Subir MP3</button>
                 <button id="btn-preview-sound" class="btn" type="button" role="menuitem">Probar sonido</button>
                 <button id="btn-clear-sound" class="btn" type="button" role="menuitem">Restablecer</button>
@@ -208,15 +243,6 @@
 
             <h3>Último evento detectado</h3>
             <div id="last-event" class="last-event muted">Sin eventos todavía.</div>
-
-            <h3>Opciones</h3>
-            <label class="setting-row" for="chk-open-at-login">
-              <input id="chk-open-at-login" type="checkbox" />
-              <span>
-                <strong>Iniciar con Windows</strong>
-                <span class="setting-hint">Abrir en segundo plano al iniciar sesión</span>
-              </span>
-            </label>
 
             <h3>Actividad / logs</h3>
             <div id="log-list" class="log-list" aria-live="polite"></div>

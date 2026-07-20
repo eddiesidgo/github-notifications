@@ -186,7 +186,7 @@ No hay push a cada PC: cada instalación **consulta** Releases. El primer instal
    - mensaje del commit más reciente
 5. Cierra la ventana para minimizar a la **bandeja del sistema**; la app sigue monitoreando.
 6. Usa **Probar notificación** para verificar el sistema de notificaciones sin esperar un push.
-7. El icono de altavoz en la barra superior abre el menú para subir un MP3 (máx. 5 MB), previsualizarlo o volver al sonido del sistema.
+7. El icono de engranaje en la barra superior abre **Configuración** (iniciar con Windows). El icono de altavoz abre el menú de sonido MP3.
 
 ### Login con PAT (organizaciones con OAuth restringido)
 
