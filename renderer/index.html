@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' https://avatars.githubusercontent.com data:;"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GitPushNotifier</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- Login -->
+      <section id="view-login" class="view hidden">
+        <div class="login-panel">
+          <div class="brand">
+            <div class="brand-mark" aria-hidden="true"></div>
+            <h1>GitPushNotifier</h1>
+            <p class="lead">
+              Monitorea pushes en tus repositorios de GitHub y recibe notificaciones nativas en Windows.
+            </p>
+          </div>
+          <div id="config-warning" class="banner warn hidden">
+            Falta configurar <code>GITHUB_CLIENT_ID</code> y <code>GITHUB_CLIENT_SECRET</code> en el archivo
+            <code>.env</code>. Copia <code>.env.example</code> y completa los valores.
+          </div>
+          <button id="btn-login" class="btn primary btn-lg">Iniciar sesión con GitHub (OAuth)</button>
+          <p class="hint">Se abrirá el navegador para autorizar la aplicación. Puede fallar en orgs con restricción de OAuth Apps.</p>
+
+          <div class="login-divider"><span>o</span></div>
+
+          <form id="form-pat" class="pat-form">
+            <label for="input-pat">Personal Access Token (recomendado si eres colaborador de una org restringida)</label>
+            <input
+              id="input-pat"
+              type="password"
+              placeholder="ghp_… o github_pat_…"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button type="submit" id="btn-pat" class="btn btn-lg">Entrar con PAT</button>
+          </form>
+          <p class="hint">
+            Classic: scope <code>repo</code>. Fine-grained: lectura del repositorio.
+            <a
+              id="link-create-pat"
+              href="https://github.com/settings/tokens/new?scopes=repo&description=GitPushNotifier"
+              class="inline-link"
+            >Crear PAT en GitHub →</a>
+          </p>
+          <p id="login-error" class="error-text hidden"></p>
+        </div>
+      </section>
+
+      <!-- Dashboard -->
+      <section id="view-dashboard" class="view hidden">
+        <header class="topbar">
+          <div class="topbar-brand">
+            <div class="brand-mark sm" aria-hidden="true"></div>
+            <div>
+              <strong>GitPushNotifier</strong>
+              <span id="monitor-badge" class="badge">—</span>
+              <span id="app-version" class="version-label muted"></span>
+            </div>
+          </div>
+          <div class="user-chip">
+            <button
+              id="btn-nav-update"
+              class="btn ghost sm"
+              type="button"
+              title="Buscar actualizaciones"
+            >
+              Buscar updates
+            </button>
+            <div class="nav-sound">
+              <button
+                id="btn-nav-sound"
+                class="btn-icon"
+                type="button"
+                title="Sonido de notificación"
+                aria-label="Sonido de notificación"
+                aria-haspopup="true"
+                aria-expanded="false"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M11 5L6 9H3v6h3l5 4V5z"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M15.5 9.5a4 4 0 010 5"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    class="sound-wave-outer"
+                    d="M18 7a7 7 0 010 10"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </button>
+              <div id="sound-menu" class="sound-menu hidden" role="menu">
+                <p id="sound-menu-label" class="sound-menu-label muted">Sonido del sistema</p>
+                <button id="btn-choose-sound" class="btn" type="button" role="menuitem">Subir MP3</button>
+                <button id="btn-preview-sound" class="btn" type="button" role="menuitem">Probar sonido</button>
+                <button id="btn-clear-sound" class="btn" type="button" role="menuitem">Restablecer</button>
+              </div>
+            </div>
+            <img id="user-avatar" alt="" width="28" height="28" />
+            <span id="user-login"></span>
+            <button id="btn-logout" class="btn ghost sm">Salir</button>
+          </div>
+        </header>
+
+        <main class="layout">
+          <div id="update-banner" class="update-banner hidden" role="status" aria-live="polite">
+            <div class="update-banner-text">
+              <strong id="update-banner-title">Actualización</strong>
+              <span id="update-banner-detail" class="muted"></span>
+            </div>
+            <div class="update-banner-actions">
+              <button id="btn-install-update" class="btn primary sm hidden" type="button">
+                Reiniciar e instalar
+              </button>
+            </div>
+          </div>
+
+          <aside class="panel">
+            <h2>Repositorios</h2>
+            <form id="form-add-repo" class="add-repo">
+              <input
+                id="input-repo"
+                type="text"
+                placeholder="owner/repo"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <button type="submit" class="btn primary">Agregar</button>
+            </form>
+            <p id="repo-error" class="error-text hidden"></p>
+            <ul id="repo-list" class="repo-list"></ul>
+            <p id="repo-empty" class="muted">Aún no hay repositorios monitoreados.</p>
+          </aside>
+
+          <section class="panel stretch">
+            <div class="panel-header">
+              <h2>Estado del monitoreo</h2>
+              <div class="actions">
+                <button id="btn-start" class="btn">Iniciar</button>
+                <button id="btn-stop" class="btn">Detener</button>
+                <button id="btn-poll" class="btn">Verificar ahora</button>
+                <button id="btn-test-notify" class="btn">Probar notificación</button>
+              </div>
+            </div>
+            <dl class="meta-grid">
+              <div>
+                <dt>Servicio</dt>
+                <dd id="meta-running">—</dd>
+              </div>
+              <div>
+                <dt>Última verificación</dt>
+                <dd id="meta-last-poll">—</dd>
+              </div>
+              <div>
+                <dt>Intervalo</dt>
+                <dd>
+                  <div class="interval-controls" id="interval-controls">
+                    <label class="sr-only" for="select-poll-interval">Preset de intervalo</label>
+                    <select id="select-poll-interval" class="select-inline" title="Presets de intervalo">
+                      <option value="15000">15 s</option>
+                      <option value="30000">30 s</option>
+                      <option value="60000">60 s</option>
+                      <option value="120000">2 min</option>
+                      <option value="300000">5 min</option>
+                      <option value="600000">10 min</option>
+                      <option value="custom">Personalizado</option>
+                    </select>
+                    <div id="poll-interval-custom" class="interval-custom">
+                      <label class="sr-only" for="input-poll-interval">Segundos personalizados</label>
+                      <input
+                        id="input-poll-interval"
+                        class="input-inline"
+                        type="number"
+                        min="10"
+                        max="3600"
+                        step="1"
+                        inputmode="numeric"
+                        title="Segundos entre verificaciones (10–3600). Enter para guardar, Esc para cancelar."
+                        aria-label="Segundos entre verificaciones"
+                      />
+                      <span class="interval-unit" aria-hidden="true">s</span>
+                    </div>
+                  </div>
+                </dd>
+              </div>
+              <div>
+                <dt>Error reciente</dt>
+                <dd id="meta-error">Ninguno</dd>
+              </div>
+            </dl>
+
+            <h3>Último evento detectado</h3>
+            <div id="last-event" class="last-event muted">Sin eventos todavía.</div>
+
+            <h3>Opciones</h3>
+            <label class="setting-row" for="chk-open-at-login">
+              <input id="chk-open-at-login" type="checkbox" />
+              <span>
+                <strong>Iniciar con Windows</strong>
+                <span class="setting-hint">Abrir en segundo plano al iniciar sesión</span>
+              </span>
+            </label>
+
+            <h3>Actividad / logs</h3>
+            <div id="log-list" class="log-list" aria-live="polite"></div>
+          </section>
+        </main>
+      </section>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>
