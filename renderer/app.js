@@ -6,8 +6,6 @@ const api = window.gitPushNotifier;
 const els = {
   loginView: document.getElementById('view-login'),
   dashView: document.getElementById('view-dashboard'),
-  configWarning: document.getElementById('config-warning'),
-  btnLogin: document.getElementById('btn-login'),
   formPat: document.getElementById('form-pat'),
   inputPat: document.getElementById('input-pat'),
   btnPat: document.getElementById('btn-pat'),
@@ -501,9 +499,6 @@ function renderState(state) {
   els.loginView.classList.toggle('hidden', authed);
   els.dashView.classList.toggle('hidden', !authed);
 
-  els.configWarning.classList.toggle('hidden', state.configReady !== false);
-  els.btnLogin.disabled = state.configReady === false;
-
   if (!authed) return;
 
   els.userLogin.textContent = state.user?.login
@@ -585,21 +580,6 @@ async function bootstrap() {
       api.openExternal(linkCreatePat.href);
     });
   }
-
-  els.btnLogin.addEventListener('click', async () => {
-    showError(els.loginError, null);
-    els.btnLogin.disabled = true;
-    els.btnLogin.textContent = 'Esperando autorización…';
-    try {
-      const result = await api.login();
-      if (!result.ok) {
-        showError(els.loginError, result.error || 'Error de autenticación');
-      }
-    } finally {
-      els.btnLogin.disabled = false;
-      els.btnLogin.textContent = 'Iniciar sesión con GitHub (OAuth)';
-    }
-  });
 
   els.formPat.addEventListener('submit', async (e) => {
     e.preventDefault();

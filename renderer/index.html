@@ -22,17 +22,8 @@
               Monitorea pushes en tus repositorios de GitHub y recibe notificaciones nativas en Windows.
             </p>
           </div>
-          <div id="config-warning" class="banner warn hidden">
-            Falta configurar <code>GITHUB_CLIENT_ID</code> y <code>GITHUB_CLIENT_SECRET</code> en el archivo
-            <code>.env</code>. Copia <code>.env.example</code> y completa los valores.
-          </div>
-          <button id="btn-login" class="btn primary btn-lg">Iniciar sesión con GitHub (OAuth)</button>
-          <p class="hint">Se abrirá el navegador para autorizar la aplicación. Puede fallar en orgs con restricción de OAuth Apps.</p>
-
-          <div class="login-divider"><span>o</span></div>
-
           <form id="form-pat" class="pat-form">
-            <label for="input-pat">Personal Access Token (recomendado si eres colaborador de una org restringida)</label>
+            <label for="input-pat">Personal Access Token</label>
             <input
               id="input-pat"
               type="password"
@@ -40,7 +31,7 @@
               autocomplete="off"
               spellcheck="false"
             />
-            <button type="submit" id="btn-pat" class="btn btn-lg">Entrar con PAT</button>
+            <button type="submit" id="btn-pat" class="btn primary btn-lg">Entrar con PAT</button>
           </form>
           <p class="hint">
             Classic: scope <code>repo</code>. Fine-grained: lectura del repositorio.

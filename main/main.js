@@ -14,12 +14,50 @@ const { registerIpcHandlers, broadcastState } = require('./ipc');
 const { applyOpenAtLogin, shouldStartHidden } = require('./loginItem');
 const { initAutoUpdater } = require('../services/autoUpdater');
 
+const SESSION_RETRY_DELAYS_MS = [2000, 5000, 10000, 20000, 30000];
+
+/**
+ * Validate a restored token. Retries on transient/network errors.
+ * Only TOKEN_INVALID is treated as fatal (session should be cleared).
+ */
+async function validateStoredSession(session) {
+  let lastError = null;
+
+  for (let attempt = 0; attempt < SESSION_RETRY_DELAYS_MS.length; attempt += 1) {
+    try {
+      const user = await githubApi.getAuthenticatedUser();
+      storage.setSession({ ...session, user });
+      return { ok: true, user };
+    } catch (err) {
+      lastError = err;
+      if (err?.code === 'TOKEN_INVALID') {
+        return { ok: false, fatal: true, err };
+      }
+
+      const willRetry = attempt < SESSION_RETRY_DELAYS_MS.length - 1;
+      const nextDelay = willRetry ? SESSION_RETRY_DELAYS_MS[attempt] : null;
+      logger.warn('Session validation failed; keeping stored session', {
+        code: err?.code,
+        message: err?.message,
+        attempt: attempt + 1,
+        nextRetryMs: nextDelay,
+      });
+
+      if (willRetry) {
+        await new Promise((resolve) => setTimeout(resolve, nextDelay));
+      }
+    }
+  }
+
+  return { ok: false, fatal: false, err: lastError };
+}
+
 // Windows taskbar / notification grouping — avoid the default Electron identity
 if (process.platform === 'win32') {
   app.setAppUserModelId('com.gitpushnotifier.app');
 }
 
-// Single instance — important so the OAuth callback port is not contested
+// Single instance — avoid duplicate tray / polling when launched twice
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
@@ -33,10 +71,6 @@ if (!gotLock) {
   app.whenReady().then(() => {
     logger.init();
     logger.info(`${config.appName} starting`);
-
-    if (!config.github.clientId || !config.github.clientSecret) {
-      logger.warn('OAuth credentials missing. Create a .env from .env.example before signing in.');
-    }
 
     Menu.setApplicationMenu(null);
     registerIpcHandlers();
@@ -71,31 +105,41 @@ if (!gotLock) {
       isMonitoring: () => pushMonitor.getStatus().running,
     });
 
-    // Restore session
+    // Restore session — keep it unless GitHub confirms the token is invalid (401).
+    // Network errors at Windows startup must not wipe the PAT.
     const session = storage.getSession();
     if (session?.accessToken) {
       githubApi.setToken(session.accessToken);
       logger.info(`Restored session for ${session.user?.login || 'unknown'}`);
 
-      // Validate token in the background
-      githubApi
-        .getAuthenticatedUser()
-        .then((user) => {
-          storage.setSession({ ...session, user });
-          if (storage.getSettings().startMonitoringOnLaunch) {
-            pushMonitor.start();
-          }
+      if (storage.getSettings().startMonitoringOnLaunch) {
+        pushMonitor.start();
+      }
+      broadcastState();
+
+      validateStoredSession(session).then((result) => {
+        if (result.ok) {
           broadcastState();
-        })
-        .catch((err) => {
+          return;
+        }
+
+        if (result.fatal) {
           logger.error('Stored token is invalid; clearing session', {
-            code: err.code,
-            message: err.message,
+            code: result.err?.code,
+            message: result.err?.message,
           });
           storage.clearSession();
           githubApi.clearToken();
+          pushMonitor.stop();
           broadcastState();
+          return;
+        }
+
+        logger.warn('Could not validate session after retries; keeping stored credentials', {
+          code: result.err?.code,
+          message: result.err?.message,
         });
+      });
     }
 
     initAutoUpdater();

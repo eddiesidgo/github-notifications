@@ -5,7 +5,6 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('gitPushNotifier', {
   getState: () => ipcRenderer.invoke('app:getState'),
-  login: () => ipcRenderer.invoke('auth:login'),
   loginWithPat: (token) => ipcRenderer.invoke('auth:loginWithPat', token),
   logout: () => ipcRenderer.invoke('auth:logout'),
   addRepo: (fullName) => ipcRenderer.invoke('repos:add', fullName),

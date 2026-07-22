@@ -3,7 +3,7 @@
  */
 const { app, ipcMain, dialog } = require('electron');
 const storage = require('../storage/store');
-const { loginWithGitHub, loginWithPat, AuthError } = require('../services/githubAuth');
+const { loginWithPat, AuthError } = require('../services/githubAuth');
 const { githubApi, GitHubApiError } = require('../services/githubApi');
 const pushMonitor = require('../services/pushMonitor');
 const {
@@ -70,7 +70,6 @@ function buildState() {
     pushState: storage.getAllForUi().pushState,
     settings: storage.getSettings(),
     sound: getSoundInfo(),
-    configReady: Boolean(config.github.clientId && config.github.clientSecret),
     pollIntervalMs: resolvePollIntervalMs(),
     update: autoUpdaterService.getState(),
     appVersion: app.getVersion(),
@@ -84,24 +83,6 @@ function broadcastState() {
 
 function registerIpcHandlers() {
   ipcMain.handle('app:getState', async () => buildState());
-
-  ipcMain.handle('auth:login', async () => {
-    try {
-      const token = await loginWithGitHub();
-      return await establishSession({
-        accessToken: token.accessToken,
-        scope: token.scope,
-        authMethod: 'oauth',
-      });
-    } catch (err) {
-      const message =
-        err instanceof AuthError
-          ? err.message
-          : err.message || 'Authentication failed';
-      logger.error('Login failed', { code: err.code, message });
-      return { ok: false, error: message, code: err.code || 'AUTH_FAILED' };
-    }
-  });
 
   ipcMain.handle('auth:loginWithPat', async (_event, rawToken) => {
     try {
